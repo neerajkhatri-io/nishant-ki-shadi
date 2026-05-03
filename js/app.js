@@ -9,7 +9,7 @@ var st = {
   catId:     null,
   vendorId:  null,
   direction: null,
-  data:      loadData()
+  data:      { vendors: {}, budget: 0, paidAmount: 0, customCats: [] }
 };
 
 // ─── NAVIGATION ──────────────────────────────────────────
@@ -52,35 +52,23 @@ function render() {
 function animateCounters() {
   var duration = 850;
   var start = performance.now();
-
   function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
-
   function tick(now) {
     var progress = Math.min((now - start) / duration, 1);
     var ease = easeOutCubic(progress);
-
     document.querySelectorAll('.count-up[data-target]').forEach(function(el) {
-      var target = parseFloat(el.dataset.target) || 0;
-      var prefix = el.dataset.prefix || '';
-      var suffix = el.dataset.suffix || '';
+      var target  = parseFloat(el.dataset.target) || 0;
+      var prefix  = el.dataset.prefix || '';
+      var suffix  = el.dataset.suffix || '';
       var current = Math.round(ease * target);
-
       if (prefix === '₹') {
-        if (target === 0) {
-          el.textContent = '—';
-        } else if (current === 0) {
-          el.textContent = '₹0';
-        } else {
-          el.textContent = fmt(current);
-        }
+        el.textContent = target === 0 ? '—' : current === 0 ? '₹0' : fmt(current);
       } else {
         el.textContent = current + suffix;
       }
     });
-
     if (progress < 1) requestAnimationFrame(tick);
   }
-
   requestAnimationFrame(tick);
 }
 
@@ -95,12 +83,10 @@ function addRipple(ev) {
   var x      = (ev.clientX - rect.left) - size / 2;
   var y      = (ev.clientY - rect.top)  - size / 2;
   var ripple = document.createElement('span');
-  ripple.className   = 'ripple';
+  ripple.className     = 'ripple';
   ripple.style.cssText = 'width:' + size + 'px;height:' + size + 'px;left:' + x + 'px;top:' + y + 'px;';
   el.appendChild(ripple);
-  setTimeout(function() {
-    if (ripple.parentNode) ripple.parentNode.removeChild(ripple);
-  }, 680);
+  setTimeout(function() { if (ripple.parentNode) ripple.parentNode.removeChild(ripple); }, 680);
 }
 
 // ─── CLICK DELEGATE ──────────────────────────────────────
@@ -111,36 +97,34 @@ document.addEventListener('click', function(ev) {
   if (!el) return;
   var a = el.dataset.a;
 
-  if (a === 'home')       return go('home',     {},   'back');
-  if (a === 'dashboard')  return go('dashboard', {});
-  if (a === 'cat')        return go('category',  { catId: el.dataset.id, vendorId: null }, 'forward');
-  if (a === 'add')        return go('form',      { vendorId: null }, 'forward');
-  if (a === 'edit')       return go('form',      { vendorId: el.dataset.id }, 'forward');
-  if (a === 'back')       return go('category',  { catId: st.catId, vendorId: null }, 'back');
-  if (a === 'export')     return exportCSV(st.data);
+  if (a === 'home')      return go('home',     {},   'back');
+  if (a === 'dashboard') return go('dashboard', {});
+  if (a === 'cat')       return go('category',  { catId: el.dataset.id, vendorId: null }, 'forward');
+  if (a === 'add')       return go('form',      { vendorId: null }, 'forward');
+  if (a === 'edit')      return go('form',      { vendorId: el.dataset.id }, 'forward');
+  if (a === 'back')      return go('category',  { catId: st.catId, vendorId: null }, 'back');
+  if (a === 'export')    return exportCSV(st.data);
 
   if (a === 'addcat') {
     var catName = (window.prompt('Enter a name for the new category:\n(e.g. Tent House, Fireworks, Band Baja, Venue etc.)') || '').trim();
     if (!catName) return;
     if (!st.data.customCats) st.data.customCats = [];
-    var iconPool  = CUSTOM_CAT_ICONS;
-    var colorPool = CUSTOM_CAT_COLORS;
-    var idx       = st.data.customCats.length;
+    var idx    = st.data.customCats.length;
     var newCat = {
       id:    'custom_' + uid(),
       name:  catName,
-      icon:  iconPool[idx % iconPool.length],
-      color: colorPool[idx % colorPool.length],
+      icon:  CUSTOM_CAT_ICONS[idx % CUSTOM_CAT_ICONS.length],
+      color: CUSTOM_CAT_COLORS[idx % CUSTOM_CAT_COLORS.length],
       desc:  'Custom Category'
     };
     st.data.customCats.push(newCat);
-    persist(st.data);
+    upsertConfig('custom_cats', JSON.stringify(st.data.customCats));
     return go('category', { catId: newCat.id, vendorId: null }, 'forward');
   }
 
   if (a === 'setstatus') {
     var val = el.dataset.val;
-    var fi = document.getElementById('f-status');
+    var fi  = document.getElementById('f-status');
     if (fi) fi.value = val;
     document.querySelectorAll('.status-choice').forEach(function(b) {
       b.classList.toggle('active', b.dataset.val === val);
@@ -178,6 +162,7 @@ document.addEventListener('click', function(ev) {
       remarks:        (document.getElementById('f-remarks').value || '').trim(),
     };
 
+    // Optimistic update in memory
     var list = vendorsFor(st.data, st.catId).slice();
     if (isEdit) {
       var idx = -1;
@@ -187,16 +172,29 @@ document.addEventListener('click', function(ev) {
       list.push(obj);
     }
     st.data.vendors[st.catId] = list;
-    persist(st.data);
+
+    // Persist to Supabase
+    upsertVendor(st.catId, obj).catch(function() {
+      alert('Save failed — check your internet connection.');
+    });
+
     return go('category', { catId: st.catId, vendorId: null }, 'back');
   }
 
   if (a === 'delete') {
     if (!confirm('Delete this vendor? This cannot be undone.')) return;
+    var delId = el.dataset.id;
+
+    // Optimistic update in memory
     st.data.vendors[st.catId] = vendorsFor(st.data, st.catId).filter(function(v) {
-      return v.id !== el.dataset.id;
+      return v.id !== delId;
     });
-    persist(st.data);
+
+    // Persist to Supabase
+    removeVendor(delId).catch(function() {
+      alert('Delete failed — check your internet connection.');
+    });
+
     return go('category', { catId: st.catId, vendorId: null }, 'back');
   }
 });
@@ -205,19 +203,54 @@ document.addEventListener('click', function(ev) {
 document.addEventListener('change', function(ev) {
   if (ev.target.id === 'b-budget') {
     st.data.budget = parseFloat(ev.target.value) || 0;
-    persist(st.data);
+    upsertConfig('budget', st.data.budget);
     render();
   } else if (ev.target.id === 'b-paid') {
     st.data.paidAmount = parseFloat(ev.target.value) || 0;
-    persist(st.data);
+    upsertConfig('paid_amount', st.data.paidAmount);
     render();
   }
 });
 
 // ─── BOOT ────────────────────────────────────────────────
-var _hasAnyVendor = Object.values(st.data.vendors).some(function(arr) { return arr && arr.length > 0; });
-if (!_hasAnyVendor) {
-  st.data = seedDummyData(st.data);
-  persist(st.data);
+function showLoading() {
+  document.getElementById('app').innerHTML =
+    '<div class="loading-screen">' +
+      '<div class="loading-spinner"></div>' +
+      '<p>Loading Nishant ki Shadi…</p>' +
+    '</div>';
 }
-render();
+
+function showError() {
+  document.getElementById('app').innerHTML =
+    '<div class="error-screen">' +
+      '<div style="font-size:48px;margin-bottom:16px">⚠️</div>' +
+      '<p>Could not connect to the database.<br>Check your internet and refresh the page.</p>' +
+    '</div>';
+}
+
+function doSeed() {
+  var dummy = seedDummyData({ vendors: {}, budget: 0, paidAmount: 0, customCats: [] });
+  var rows  = [];
+  Object.keys(dummy.vendors).forEach(function(catId) {
+    dummy.vendors[catId].forEach(function(v) { rows.push(vendorToRow(catId, v)); });
+  });
+  return sbFetch('vendors', 'POST', rows, { 'Prefer': 'resolution=merge-duplicates,return=minimal' })
+    .then(function() { return loadFromSupabase(); });
+}
+
+showLoading();
+loadFromSupabase()
+  .then(function(data) {
+    st.data = data;
+    var hasVendors = Object.values(st.data.vendors).some(function(arr) { return arr.length > 0; });
+    if (!hasVendors) return doSeed();
+    return data;
+  })
+  .then(function(data) {
+    st.data = data;
+    render();
+  })
+  .catch(function() {
+    showError();
+  });
