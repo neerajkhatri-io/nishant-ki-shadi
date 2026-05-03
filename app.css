@@ -90,6 +90,59 @@ body {
   font-weight: 600;
 }
 
+/* ─── Big countdown ring ─── */
+.countdown-block {
+  display: flex;
+  justify-content: center;
+  margin: 20px 0 16px;
+  position: relative;
+}
+.countdown-ring {
+  width: 136px;
+  height: 136px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.55);
+  border: 2.5px solid rgba(200,130,50,0.28);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 28px rgba(180,100,20,0.14), inset 0 1px 0 rgba(255,255,255,0.8);
+  animation: ring-pulse 3s ease-in-out infinite;
+  position: relative;
+  overflow: hidden;
+}
+@keyframes ring-pulse {
+  0%, 100% { transform: scale(1);    box-shadow: 0 6px 28px rgba(180,100,20,0.14); }
+  50%       { transform: scale(1.05); box-shadow: 0 10px 40px rgba(180,100,20,0.26); }
+}
+.countdown-petals {
+  position: absolute;
+  font-size: 64px;
+  opacity: 0.07;
+  animation: petal-spin 18s linear infinite;
+  pointer-events: none;
+}
+@keyframes petal-spin { to { transform: rotate(360deg); } }
+.countdown-number {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 54px;
+  font-weight: 900;
+  color: #3E1F00;
+  line-height: 1;
+  letter-spacing: -2px;
+  position: relative;
+}
+.countdown-label {
+  font-size: 9px;
+  color: #A06030;
+  text-transform: uppercase;
+  letter-spacing: 2.5px;
+  font-weight: 800;
+  margin-top: 3px;
+  position: relative;
+}
+
 /* ─── Progress bar inside header ─── */
 .header-progress {
   margin: 16px auto 0;
@@ -388,6 +441,15 @@ body {
 
 .vc-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px; }
 .vc-name { font-size: 16px; font-weight: 800; color: #2C1810; flex: 1; margin-right: 8px; line-height: 1.2; }
+.vc-top-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.card-del-btn {
+  background: #FFF0EE; border: none; font-size: 14px; padding: 3px 7px;
+  border-radius: 8px; cursor: pointer; color: #C62828; flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent; transition: background 0.13s;
+  position: relative; overflow: hidden;
+}
+.card-del-btn:active { background: #FFD8D8; }
+.vc-addedby { font-size: 11px; color: #C0956A; margin-top: 3px; font-style: italic; }
 
 .status-pill {
   font-size: 10px; font-weight: 800; padding: 3px 10px; border-radius: 20px; flex-shrink: 0; white-space: nowrap; letter-spacing: 0.2px;
@@ -457,6 +519,21 @@ textarea.form-input { min-height: 84px; resize: vertical; line-height: 1.5; }
 .status-choice[data-val="negotiating"] { background: #E65100; color: #FFE0B2; }
 .status-choice[data-val="booked"]      { background: #2E7D32; color: #C8E6C9; }
 .status-choice[data-val="rejected"]    { background: #B71C1C; color: #FFCDD2; }
+
+/* Name pills — who is adding */
+.name-pill-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 4px; }
+.name-pill {
+  padding: 8px 14px; border-radius: 20px; border: 2px solid #E8D5BC;
+  font-size: 13px; font-weight: 700; cursor: pointer; background: #FFFBF7;
+  color: #9A6510; transition: all 0.14s; -webkit-tap-highlight-color: transparent;
+}
+.name-pill.active {
+  background: linear-gradient(135deg, #E65100, #BF360C);
+  color: white; border-color: transparent;
+  box-shadow: 0 3px 12px rgba(230,81,0,0.32);
+  transform: scale(1.06);
+}
+.name-pill:active { transform: scale(0.96); }
 
 /* Star rating */
 .star-row { display: flex; gap: 5px; margin-bottom: 14px; }
@@ -670,6 +747,46 @@ textarea.form-input { min-height: 84px; resize: vertical; line-height: 1.5; }
   transition: transform 0.1s;
 }
 .export-btn:active { transform: scale(0.98); opacity: 0.9; }
+
+/* ═══════════════════════════════════════════════════════════
+   CONFETTI & TOAST
+   ═══════════════════════════════════════════════════════════ */
+.confetti-piece {
+  position: fixed;
+  top: -40px;
+  z-index: 9999;
+  pointer-events: none;
+  animation: confetti-fall var(--dur, 2s) ease-in forwards;
+  will-change: transform;
+}
+@keyframes confetti-fall {
+  0%   { transform: translateY(0)     rotate(0deg)   scale(1);   opacity: 1; }
+  80%  { opacity: 1; }
+  100% { transform: translateY(105vh) rotate(540deg) scale(0.6); opacity: 0; }
+}
+
+.booking-toast {
+  position: fixed;
+  bottom: 90px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: linear-gradient(135deg, #2E7D32, #1B5E20);
+  color: white;
+  padding: 13px 28px;
+  border-radius: 30px;
+  font-size: 16px;
+  font-weight: 800;
+  box-shadow: 0 6px 24px rgba(27,94,32,0.4);
+  z-index: 9998;
+  opacity: 0;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.booking-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
 
 /* ═══════════════════════════════════════════════════════════
    LOADING & ERROR STATES

@@ -105,6 +105,24 @@ document.addEventListener('click', function(ev) {
   if (a === 'back')      return go('category',  { catId: st.catId, vendorId: null }, 'back');
   if (a === 'export')    return exportCSV(st.data);
 
+  if (a === 'addedby') {
+    var val = el.dataset.val;
+    var ab  = document.getElementById('f-added-by');
+    if (ab) ab.value = val;
+    document.querySelectorAll('.name-pill').forEach(function(b) {
+      b.classList.toggle('active', b.dataset.val === val);
+    });
+    return;
+  }
+
+  if (a === 'carddelete') {
+    if (!confirm('Delete this vendor? This cannot be undone.')) return;
+    var delId = el.dataset.id;
+    st.data.vendors[st.catId] = vendorsFor(st.data, st.catId).filter(function(v) { return v.id !== delId; });
+    removeVendor(delId).catch(function() { alert('Delete failed.'); });
+    return go('category', { catId: st.catId, vendorId: null }, null);
+  }
+
   if (a === 'addcat') {
     var catName = (window.prompt('Enter a name for the new category:\n(e.g. Tent House, Fireworks, Band Baja, Venue etc.)') || '').trim();
     if (!catName) return;
@@ -160,7 +178,10 @@ document.addEventListener('click', function(ev) {
       status:         document.getElementById('f-status').value || 'exploring',
       rating:         parseInt(document.getElementById('f-rating').value) || 0,
       remarks:        (document.getElementById('f-remarks').value || '').trim(),
+      addedBy:        (document.getElementById('f-added-by').value || '').trim(),
     };
+
+    if (obj.status === 'booked') celebrate();
 
     // Optimistic update in memory
     var list = vendorsFor(st.data, st.catId).slice();
@@ -211,6 +232,37 @@ document.addEventListener('change', function(ev) {
     render();
   }
 });
+
+// ─── CELEBRATION 🎊 ──────────────────────────────────────
+function celebrate() {
+  var pieces = ['🌸','🌼','🪔','✨','💫','🎊','💐','🌺','🏵️','🎉'];
+  for (var i = 0; i < 40; i++) {
+    (function(idx) {
+      setTimeout(function() {
+        var el       = document.createElement('div');
+        el.className = 'confetti-piece';
+        el.textContent = pieces[Math.floor(Math.random() * pieces.length)];
+        el.style.left              = (Math.random() * 100) + 'vw';
+        el.style.fontSize          = (14 + Math.random() * 18) + 'px';
+        el.style.animationDuration = (1.4 + Math.random() * 1.8) + 's';
+        el.style.animationDelay    = '0s';
+        document.body.appendChild(el);
+        setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 3500);
+      }, idx * 60);
+    })(i);
+  }
+
+  // Toast
+  var toast       = document.createElement('div');
+  toast.className = 'booking-toast';
+  toast.textContent = '🎉 Booked! Shubh Ho!';
+  document.body.appendChild(toast);
+  setTimeout(function() { toast.classList.add('show'); }, 50);
+  setTimeout(function() {
+    toast.classList.remove('show');
+    setTimeout(function() { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 400);
+  }, 2500);
+}
 
 // ─── BOOT ────────────────────────────────────────────────
 function showLoading() {

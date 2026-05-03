@@ -44,6 +44,7 @@ function loadFromSupabase() {
         status:         v.status || 'exploring',
         rating:         v.rating || 0,
         remarks:        v.remarks || '',
+        addedBy:        v.added_by || '',
       });
     });
 
@@ -71,6 +72,7 @@ function vendorToRow(catId, v) {
     status:          v.status || 'exploring',
     rating:          v.rating || 0,
     remarks:         v.remarks || '',
+    added_by:        v.addedBy || '',
   };
 }
 
