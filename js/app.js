@@ -195,8 +195,8 @@ document.addEventListener('click', function(ev) {
     st.data.vendors[st.catId] = list;
 
     // Persist to Supabase
-    upsertVendor(st.catId, obj).catch(function() {
-      alert('Save failed — check your internet connection.');
+    upsertVendor(st.catId, obj).catch(function(err) {
+      alert('Save failed: ' + (err && err.message ? err.message : 'Check your internet connection.'));
     });
 
     return go('category', { catId: st.catId, vendorId: null }, 'back');

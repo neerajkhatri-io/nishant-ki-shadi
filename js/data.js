@@ -17,9 +17,8 @@ function sbFetch(path, method, body, extraHeaders) {
   var opts = { method: method || 'GET', headers: headers };
   if (body !== undefined) opts.body = JSON.stringify(body);
   return fetch(SUPABASE_URL + '/rest/v1/' + path, opts).then(function(r) {
-    if (r.status === 204 || r.status === 201) return null;
-    if (!r.ok) return r.text().then(function(t) { throw new Error(t); });
-    return r.json();
+    if (!r.ok) return r.text().then(function(t) { throw new Error(t || ('HTTP ' + r.status)); });
+    return r.text().then(function(t) { return t ? JSON.parse(t) : null; });
   });
 }
 
